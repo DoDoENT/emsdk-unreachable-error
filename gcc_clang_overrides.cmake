@@ -26,11 +26,35 @@ if( CLANG )
     #                   (Nenad Miksa) (2020-05-21)
     # Additional note: also tested with CMake 3.19.0 and Xcode 12.2.0 - still the same bug appears
     #                   (Nenad Miksa) (2020-11-20)
+    # Additional note: also tested with CMake 3.21.3 and Xcode 13.0.0 - still the same bug appears
+    #                   (Nenad Miksa) (2021-09-22)
 
     if ( NOT CMAKE_GENERATOR STREQUAL "Xcode" )
         # https://github.com/android-ndk/ndk/issues/133#issuecomment-323468161
         # https://stackoverflow.com/a/15548189/213057
+        # https://gitlab.kitware.com/cmake/cmake/-/issues/22665
         set( TNUN_compiler_optimize_for_size -Oz )
+    endif()
+
+    if ( CMAKE_GENERATOR STREQUAL "Xcode" )
+        set( ARCH "[arch=x86_64]" )
+        # enable SSE3 and SSE4 on Intel
+        set( CMAKE_XCODE_ATTRIBUTE_OTHER_CFLAGS${ARCH}         "${CMAKE_XCODE_ATTRIBUTE_OTHER_CFLAGS${ARCH}}         $(OTHER_CFLAGS)         -msse3 -msse4" )
+        set( CMAKE_XCODE_ATTRIBUTE_OTHER_CPLUSPLUSFLAGS${ARCH} "${CMAKE_XCODE_ATTRIBUTE_OTHER_CPLUSPLUSFLAGS${ARCH}} $(OTHER_CPLUSPLUSFLAGS) -msse3 -msse4" )
+    else()
+        if ( CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" )
+            # enable SSE3 and SSE4 on Intel
+            add_compile_options( -msse3 -msse4 )
+        endif()
+    endif()
+
+    # Note: vptr sanitizer causes linker errors in MVToolsetTest and false positives
+    # in NeuralNetworkModelBuilder (reports errors within STL's iostream)
+    list( APPEND TNUN_compiler_runtime_sanity_checks -fno-sanitize=vptr )
+
+    if ( CLANG AND ( ( ANDROID AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "12.0.0" ) OR ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "13.0.0" ) ) )
+        # enable LLVM Polly
+        list( APPEND TNUN_compiler_optimize_for_speed -mllvm -polly )
     endif()
 else()
     list( APPEND TNUN_disabled_warnings -Wno-error=cpp )

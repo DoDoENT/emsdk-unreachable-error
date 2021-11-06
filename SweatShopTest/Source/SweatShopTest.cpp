@@ -9,7 +9,6 @@
 //------------------------------------------------------------------------------
 #include <Sweater/SweatShop.hpp>
 
-#include <boost/sweater/hardware_concurrency.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
